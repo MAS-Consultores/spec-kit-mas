@@ -3,6 +3,7 @@
 from specify_cli.stacks import (
     APPROVED_STACKS,
     STACK_CONTEXT_FILE,
+    StackProfile,
     load_stack_profile_from_context,
     render_stack_context,
     validate_stack_context_content,
@@ -17,7 +18,19 @@ class TestStackContextValidation:
         assert "## When This Stack Fits" in content
         assert "## When This Stack Is a Poor Fit" in content
         assert "## Core Constraints" in content
+        assert "## Security Controls" in content
+        assert "## Security Pitfalls" in content
+        assert "## Security Evidence" in content
         assert validate_stack_context_content(content) == []
+
+    def test_all_approved_stacks_define_security_sections(self) -> None:
+        for stack_id, profile in APPROVED_STACKS.items():
+            assert isinstance(profile, StackProfile)
+            assert profile.security_controls, f"{stack_id}: security_controls empty"
+            assert profile.security_pitfalls, f"{stack_id}: security_pitfalls empty"
+            assert profile.security_evidence, f"{stack_id}: security_evidence empty"
+            rendered = render_stack_context(profile)
+            assert validate_stack_context_content(rendered) == [], stack_id
 
     def test_validation_rejects_incomplete_context(self):
         content = """---

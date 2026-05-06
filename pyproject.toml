@@ -34,6 +34,9 @@ packages = ["src/specify_cli"]
 "templates/spec-template.md" = "specify_cli/core_pack/templates/spec-template.md"
 "templates/tasks-template.md" = "specify_cli/core_pack/templates/tasks-template.md"
 "templates/vscode-settings.json" = "specify_cli/core_pack/templates/vscode-settings.json"
+# Stack-agnostic and legacy security reference templates (copied to .specify/memory/)
+"memory/security-standard-template.md" = "specify_cli/core_pack/memory/security-standard-template.md"
+"memory/legacy/moodle3-security-template.md" = "specify_cli/core_pack/memory/legacy/moodle3-security-template.md"
 # Command templates
 "templates/commands" = "specify_cli/core_pack/commands"
 "scripts/bash" = "specify_cli/core_pack/scripts/bash"

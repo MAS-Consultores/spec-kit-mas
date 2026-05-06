@@ -13,6 +13,38 @@
 - Secrets, credentials, and personal data MUST be protected in transit, at rest,
   and in logs; production data exposure in non-production environments is
   prohibited unless explicitly approved and sanitized.
+- Authorization MUST be enforced on the server for every entrypoint (including
+  APIs, background jobs, and CLI); client-side or UI-only checks are never
+  sufficient.
+- Multi-factor authentication SHOULD be required for administrative or
+  high-privilege roles where technically feasible; password storage MUST use
+  adaptive hashing and MUST NOT use deprecated algorithms such as md5 or sha1
+  for credentials.
+- Sessions and cookies MUST use TLS, `Secure`, `HttpOnly`, and appropriate
+  `SameSite`; sessions MUST be invalidated or rotated when privilege level
+  changes.
+- Untrusted input MUST be validated on the server; output MUST be encoded in
+  context; data access MUST use parameterized queries or ORM bindings; state-
+  changing browser requests MUST be protected against CSRF where applicable.
+- Production environments MUST apply baseline HTTP hardening (for example CSP,
+  HSTS, `X-Content-Type-Options`, and a coherent `Referrer-Policy`) unless a
+  formal exception is recorded with compensating controls.
+- Cryptography MUST use maintained libraries and current algorithms; custom
+  cryptography is prohibited; key material MUST stay out of source control and
+  MUST be rotatable after exposure.
+- Dependencies and third-party components MUST be tracked and scanned for known
+  vulnerabilities; high-severity findings MUST be remediated or formally risk-
+  accepted before production promotion.
+- Security-relevant events and permission-sensitive mutations MUST be logged and
+  auditable without recording credentials or unnecessary personal data in logs.
+- Secure delivery practices MUST include lightweight threat review for high-risk
+  changes, peer review of security-sensitive paths, and evidence of validation
+  before release when security, integrity, or recovery readiness is in scope.
+- Stack-agnostic security expectations live in `.specify/memory/security-
+  standard.md` (initialized from the bundled template). When a stack is
+  registered, `.specify/context/stack.md` MUST include **Security Controls**,
+  **Security Pitfalls**, and **Security Evidence** sections populated from the
+  approved stack profile; plans and reviews MUST align with both documents.
 
 ### II. Traceability and Auditability
 - Requirements, decisions, code changes, data migrations, and releases MUST be

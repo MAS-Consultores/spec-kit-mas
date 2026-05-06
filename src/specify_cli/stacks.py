@@ -17,6 +17,9 @@ STACK_CONTEXT_REQUIRED_SECTIONS = (
     "## Expected Artifacts",
     "## Preferred Practices",
     "## Things To Avoid",
+    "## Security Controls",
+    "## Security Pitfalls",
+    "## Security Evidence",
 )
 
 
@@ -34,6 +37,9 @@ class StackProfile:
     expected_artifacts: tuple[str, ...]
     preferred_practices: tuple[str, ...]
     avoid: tuple[str, ...]
+    security_controls: tuple[str, ...]
+    security_pitfalls: tuple[str, ...]
+    security_evidence: tuple[str, ...]
 
 
 APPROVED_STACKS: dict[str, StackProfile] = {
@@ -76,6 +82,38 @@ APPROVED_STACKS: dict[str, StackProfile] = {
             "Do not bypass migrations, data-model documentation, or delivery traceability with direct database changes.",
             "Do not ship large-listing or admin workflow changes without validating performance, pagination, and rollback behavior.",
         ),
+        security_controls=(
+            "Enable `SecurityComponent` with form tampering and CSRF protection on every controller that accepts mutations.",
+            "Authorize privileged actions with `AuthComponent` server-side; never rely on view-only checks.",
+            "Hash credentials with `Security::hash($pwd, 'blowfish')` or migrate to `password_hash` / `password_verify` in a dedicated layer; never use md5/sha1 for passwords.",
+            "Keep `Security.salt` and `Security.cipherSeed` out of version-controlled `app/Config/core.php`; rotate them after credential incidents.",
+            "Use ORM bindings or `$Model->find` parameter arrays; ban string-concatenated `$this->Model->query(...)` for user-controlled input.",
+            "Validate and sanitize `$this->request->data` server-side; never echo request data without contextual escaping helpers.",
+            "Use the `h()` helper every time user-influenced or stored dynamic text is output in views, elements, layouts, and emails (including inside HTML attributes and JSON-in-script); treat omission of `h()` as a defect unless the value is provably constant and non-HTML.",
+            "For every file upload, validate the real MIME type and magic bytes (for example `finfo_file` / `mime_content_type` on a temp path) against an allow-list; never trust the browser `Content-Type` or the original filename alone. Reject `.php`, `.phtml`, `.phar`, `.htaccess`, path traversal in names, and double extensions that smuggle executables.",
+            "Store uploads outside the webroot or behind non-executable delivery (no direct PHP execution from the upload directory); normalize stored filenames.",
+            "Apply security headers (CSP, HSTS, X-Content-Type-Options, Referrer-Policy) at the web server or reverse proxy; CakePHP 2 has no robust native equivalent.",
+            "Maintain a manual CVE and patch inventory because CakePHP 2.x is out of official maintenance; track third-party plugin compatibility per release.",
+        ),
+        security_pitfalls=(
+            "Disabling `SecurityComponent` because forms break instead of fixing FormHelper usage.",
+            "Calling `$this->Model->query('SELECT ... WHERE id = ' . $id)` with user-controlled input.",
+            "Storing `Security.salt` / `cipherSeed` in committed configuration files.",
+            "Authorizing only in views or hidden fields instead of `AuthComponent` / `isAuthorized`.",
+            "Printing dynamic values with `echo` / short tags without `h()`, or embedding them unescaped in attributes, `<script>`, or JavaScript literals (XSS).",
+            "Accepting uploads based only on client `Content-Type` or file extension without server-side MIME and content checks, or allowing `.php` / scriptable types into a web-served folder.",
+            "Logging request bodies, sessions, or stack traces that contain credentials or PII.",
+            "Letting legacy plugins or vendor trees drift from a known-good patched baseline.",
+        ),
+        security_evidence=(
+            "Plan documents controllers where `SecurityComponent` or `AuthComponent` configuration changes.",
+            "Plan lists views or elements that render user-influenced text and confirms `h()` (or equivalent) is applied at every output site.",
+            "Plan describes upload handling: MIME and extension allow-list, denial of `.php` and related types, storage path, and how files are served without execution risk.",
+            "Plan lists models and queries touched and confirms parameterized access (no raw SQL with user input).",
+            "Plan attaches the CVE/patch inventory delta when third-party or core code changes.",
+            "QA covers authentication, authorization, CSRF, and pagination for affected operational paths.",
+            "Deployment notes include web-server header configuration when applicable.",
+        ),
     ),
     "moodle5-plugin": StackProfile(
         key="moodle5-plugin",
@@ -115,6 +153,33 @@ APPROVED_STACKS: dict[str, StackProfile] = {
             "Do not patch Moodle core when a plugin extension point is the correct solution.",
             "Do not skip capability, privacy, versioning, install, or upgrade analysis for seemingly small features.",
             "Do not introduce a separate frontend stack that ignores Moodle's Bootstrap 5 and plugin rendering constraints unless an exception is approved.",
+        ),
+        security_controls=(
+            "Call `require_login()` and `require_capability()` with the correct context on every plugin entrypoint (pages, AJAX, web services, scheduled tasks).",
+            "Protect state-changing flows with `sesskey()` / `confirm_sesskey()` or Moodle Forms (`moodleform`), which handle sesskey automatically.",
+            "Use the `$DB` API with named placeholders only; never concatenate user-controlled input into SQL strings.",
+            "Render output with `format_string` / `format_text` using the proper context and filters; never echo raw user input.",
+            "Serve uploads via the Files API and `pluginfile.php` with capability checks; never expose raw filesystem paths.",
+            "For every upload surface (draft areas, file managers, custom forms), enforce allowed extensions and MIME type groups server-side (`file_extension`, `file_mimetype_in_typegroup`, or equivalent); reject `.php`, `.phtml`, `.phar`, `.htaccess`, path tricks, and double extensions. Never persist user binaries to a web-served directory outside Moodle's file storage model.",
+            "Implement the Privacy API (provider, metadata, export, delete) for any plugin that stores or derives personal data.",
+            "Use language strings (`get_string`) for user-visible text; keep credentials and identifiers out of debug output.",
+            "Track Moodle compatibility via `version.php` and ship `db/upgrade.php` paths that preserve capabilities and privacy metadata across upgrades.",
+        ),
+        security_pitfalls=(
+            "Skipping `require_login` on AJAX endpoints because they are internal.",
+            "Calling `$DB->execute` or `$DB->get_records_sql` with concatenated user input.",
+            "Using `optional_param` / `required_param` with the wrong type (e.g. PARAM_RAW) where PARAM_INT, PARAM_ALPHANUM, or PARAM_TEXT is required.",
+            "Bypassing the Files API by writing directly to `$CFG->dataroot` or returning filesystem paths in URLs.",
+            "Accepting uploads without server-side MIME and extension checks, or allowing scriptable types (for example `.php`) to be stored or served in a way that could execute under the web server.",
+            "Omitting privacy metadata for new tables, leaving the plugin non-compliant with the Privacy API.",
+            "Sharing state with globals across requests instead of session and context APIs.",
+        ),
+        security_evidence=(
+            "Plan lists each entrypoint, the capability checked, and the context level used.",
+            "Plan records `version.php`, `db/install.xml` / `db/upgrade.php`, and privacy metadata changes.",
+            "Plan lists new or changed language strings.",
+            "QA covers teacher, student, admin, and guest flows, including capability denial paths.",
+            "Plan documents how uploads are stored and served through the Files API, including MIME or typegroup rules, extension deny-list, and capability checks on `pluginfile`.",
         ),
     ),
     "moodle5-portal": StackProfile(
@@ -156,6 +221,30 @@ APPROVED_STACKS: dict[str, StackProfile] = {
             "Do not bypass shared portal auth, navigation, reporting, or observability standards for local convenience.",
             "Do not ship operationally sensitive portal changes without controlled deployment and rollback planning.",
         ),
+        security_controls=(
+            "Apply institution-aware capability checks on every cross-area page; never assume a global admin context.",
+            "Paginate large listings, reports, and exports server-side with explicit per-context permission checks before each batch.",
+            "Emit audit events for cohort or enrollment changes, role assignments, and bulk actions through Moodle's event API.",
+            "Enforce cohort or tenant isolation: reports, exports, and notifications must scope to the active institution context.",
+            "Protect report and export downloads through `pluginfile.php` with capability-aware callbacks.",
+            "Coordinate LDAP, SAML, or SSO with central identity ownership; do not bypass Moodle auth plugins for shortcuts.",
+            "For portal file intake (imports, attachments, archives, generated exports that re-ingest user files), validate real MIME types and enforce extension allow-lists server-side; reject `.php`, `.phtml`, `.phar`, nested archives with executables, and path-traversal names. Keep persisted user files in Moodle file storage with `pluginfile` delivery, not ad-hoc web directories.",
+        ),
+        security_pitfalls=(
+            "Querying institutional data without filtering by the active context (course, cohort, category).",
+            "Building dashboards that mix institutions without explicit tenant scoping.",
+            "Shipping bulk actions without confirmation, audit events, or partial-failure handling.",
+            "Returning unbounded result sets in admin reports, enabling slow rendering or timeout-based abuse.",
+            "Hardcoding institution-specific roles instead of capabilities and contexts.",
+            "Bulk-importing or re-hosting user-supplied files without MIME and extension validation, allowing executable content into institutional workflows or web-served paths.",
+        ),
+        security_evidence=(
+            "Plan lists operational roles touched and the capability and context combination each requires.",
+            "Plan documents pagination, filtering, and export limits for every large listing or report.",
+            "Plan registers audit events for sensitive operations (cohort, enrollment, role assignment, bulk).",
+            "QA validates institution isolation: users in institution A must not see institution B data.",
+            "Plan describes any portal upload or import path: MIME and extension policy, explicit rejection of `.php` and related types, and how files are stored and delivered without execution risk.",
+        ),
     ),
     "laravel-inertia-react": StackProfile(
         key="laravel-inertia-react",
@@ -195,6 +284,40 @@ APPROVED_STACKS: dict[str, StackProfile] = {
             "Do not create parallel client-side data flows that bypass Laravel, Inertia, or the established permission model without an approved exception.",
             "Do not duplicate authorization or validation rules across backend and frontend when Laravel should own the canonical behavior.",
             "Do not skip migrations, seeders, permission setup, reusable form components, or backend pagination where the feature clearly needs them.",
+        ),
+        security_controls=(
+            "Authorize every controller action with Policies and Gates (`$this->authorize(...)` or `can:` middleware); never rely on React or Inertia alone.",
+            "For mutating actions (`store`, `update`, and any other write that accepts a request body), type-hint a dedicated `FormRequest` subclass with explicit rules and authorization; do not use `Illuminate\\Http\\Request` in those methods. Read-only endpoints may use `Request` only when no validated body is consumed.",
+            "Reject unvalidated array hydration from any request object into models or commands.",
+            "Enforce mass-assignment rules with explicit `$fillable` (or guarded models with deliberate fillable lists) on every Eloquent model that accepts user input.",
+            "Hash credentials with bcrypt or argon2id via `Hash::make`; encrypt PII with `encrypted` or `encrypted:array` casts and rotate `APP_KEY` per policy.",
+            "Apply `RateLimiter` or `throttle:` middleware to authentication, password reset, and sensitive write endpoints; log throttling events.",
+            "Keep CSRF middleware enabled on all state-changing routes; forward the XSRF cookie or token for Inertia as documented.",
+            "Emit security headers (CSP with nonce or hashes, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) via middleware or reverse proxy; align Vite and Inertia HTML with the CSP nonce when used.",
+            "Run `composer audit` and `npm audit --omit=dev` in CI; resolve high-severity advisories before release.",
+            "Strip sensitive values from Inertia shared data in `HandleInertiaRequests`; expose only minimal session or user fields.",
+            "For uploads, validate in Form Requests using `file`, `mimes`, `mimetypes`, and size limits; verify the real MIME type from the stored file (for example `File::mimeType()` or `finfo`) against an allow-list. Reject `.php`, `.phtml`, `.phar`, `.htaccess`, path traversal in original names, and double extensions. Store outside `public/` or serve only through authenticated download routes; never execute uploaded binaries.",
+            "Disable debug surfaces in production (`APP_DEBUG=false`); protect Telescope, Horizon, and Pulse behind authorization.",
+        ),
+        security_pitfalls=(
+            "Authorizing only in React or Inertia without a backend Policy or Gate.",
+            "Using `Request $request` (or untyped request) in `store`, `update`, or other write actions instead of a dedicated `FormRequest`, which bypasses centralized validation and `authorize()` on the request class.",
+            "Using `Model::create($request->all())` or `Model::fill($request->all())` without Form Request validation and `$fillable` enforcement.",
+            "Rendering user HTML with `dangerouslySetInnerHTML` without server-side sanitization.",
+            "Storing API tokens, signed URLs, or PII in Inertia shared props or client state that leaks in the page payload.",
+            "Disabling CSRF middleware instead of wiring the token correctly.",
+            "Returning raw Eloquent models in Inertia responses, exposing hidden attributes or internal flags.",
+            "Running `php artisan tinker`, `migrate:fresh`, or ad hoc `DB::statement` in production without an audit trail.",
+            "Trusting the browser filename or `Content-Type` alone, storing uploads under `public/` with predictable URLs, or skipping MIME checks so `.php` or disguised executables can be uploaded or executed.",
+        ),
+        security_evidence=(
+            "Plan lists Policies, Gates, and Form Requests added or reused, with the routes they cover.",
+            "Plan or PR lists each `store` / `update` (and other write) action and names the concrete `FormRequest` class used; no generic `Request` type-hint on those methods.",
+            "Plan states which Eloquent models change and the fillable or guarded posture for each.",
+            "Migrations and seeders document PII handling (encrypted casts, hashing, factory redaction).",
+            "Pull requests include `composer audit` and `npm audit` results with remediation for high-severity issues.",
+            "QA notes cover authentication boundaries, rate limiting, CSRF on Inertia forms, and CSP or headers in the target environment.",
+            "Plan documents each upload endpoint: validation rules, MIME verification, extension deny-list, storage disk and path, and how downloads are authorized.",
         ),
     ),
 }
@@ -352,7 +475,13 @@ def render_stack_context(profile: StackProfile) -> str:
         f"## Preferred Practices\n\n"
         f"{bullets(profile.preferred_practices)}\n\n"
         f"## Things To Avoid\n\n"
-        f"{bullets(profile.avoid)}\n"
+        f"{bullets(profile.avoid)}\n\n"
+        f"## Security Controls\n\n"
+        f"{bullets(profile.security_controls)}\n\n"
+        f"## Security Pitfalls\n\n"
+        f"{bullets(profile.security_pitfalls)}\n\n"
+        f"## Security Evidence\n\n"
+        f"{bullets(profile.security_evidence)}\n"
     )
 
 
