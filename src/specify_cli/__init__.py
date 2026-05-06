@@ -785,6 +785,29 @@ def _install_shared_infra(
                     rel = dst.relative_to(project_path).as_posix()
                     manifest.record_existing(rel)
 
+    # Memory templates (security standard, legacy Moodle reference, etc.)
+    repo_root_fallback = Path(__file__).parent.parent.parent
+    if core and (core / "memory").is_dir():
+        memory_src: Path | None = core / "memory"
+    elif (repo_root_fallback / "memory").is_dir():
+        memory_src = repo_root_fallback / "memory"
+    else:
+        memory_src = None
+
+    if memory_src is not None and memory_src.is_dir():
+        dest_memory = project_path / ".specify" / "memory"
+        for src_path in memory_src.rglob("*"):
+            if src_path.is_file():
+                rel_path = src_path.relative_to(memory_src)
+                dst_path = dest_memory / rel_path
+                if dst_path.exists():
+                    skipped_files.append(str(dst_path.relative_to(project_path)))
+                else:
+                    dst_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
+                    rel = dst_path.relative_to(project_path).as_posix()
+                    manifest.record_existing(rel)
+
     if skipped_files:
         import logging
         logging.getLogger(__name__).warning(
@@ -882,6 +905,43 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
             tracker.error("constitution", str(e))
         else:
             console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
+
+
+def ensure_security_standard_from_template(
+    project_path: Path, tracker: StepTracker | None = None
+) -> None:
+    """Copy stack-agnostic security standard from template into memory if absent."""
+
+    memory_dir = project_path / ".specify" / "memory"
+    template_src = memory_dir / "security-standard-template.md"
+    memory_dest = memory_dir / "security-standard.md"
+
+    if memory_dest.exists():
+        if tracker:
+            tracker.add("security-standard", "Security standard setup")
+            tracker.skip("security-standard", "existing file preserved")
+        return
+
+    if not template_src.exists():
+        if tracker:
+            tracker.add("security-standard", "Security standard setup")
+            tracker.skip("security-standard", "template not found")
+        return
+
+    try:
+        memory_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(template_src, memory_dest)
+        if tracker:
+            tracker.add("security-standard", "Security standard setup")
+            tracker.complete("security-standard", "copied from template")
+        else:
+            console.print("[cyan]Initialized security standard from template[/cyan]")
+    except Exception as e:
+        if tracker:
+            tracker.add("security-standard", "Security standard setup")
+            tracker.error("security-standard", str(e))
+        else:
+            console.print(f"[yellow]Warning: Could not initialize security standard: {e}[/yellow]")
 
 
 def ensure_stack_context(
@@ -1333,9 +1393,13 @@ def init(
             # Install shared infrastructure (scripts, templates)
             tracker.start("shared-infra")
             _install_shared_infra(project_path, selected_script, tracker=tracker)
-            tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
+            tracker.complete(
+                "shared-infra",
+                f"scripts ({selected_script}) + templates + memory templates",
+            )
 
             ensure_constitution_from_template(project_path, tracker=tracker)
+            ensure_security_standard_from_template(project_path, tracker=tracker)
             ensure_stack_context(
                 project_path,
                 selected_stack.key if selected_stack else None,

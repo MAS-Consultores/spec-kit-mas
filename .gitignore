@@ -46,6 +46,9 @@ env/
 sdd-*/
 docs/dev
 
+# Local planning / preview markdown at repo root (not shipped)
+_*.md
+
 # Extension system
 .specify/extensions/.cache/
 .specify/extensions/.backup/

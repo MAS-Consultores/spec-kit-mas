@@ -26,6 +26,9 @@ delivery-sensitive context]
 **Deviation / Exception Needed**: [None or explicit exception with rationale, scope, and approver path]<br>
 **Stack Profile Constraints**: [Relevant constraints pulled from `.specify/context/stack.md`]<br>
 **Stack-Specific Risks**: [Relevant risks pulled from `.specify/context/stack.md`]<br>
+**Stack Security Controls**: [Summarize applicable bullets from `## Security Controls` in `.specify/context/stack.md`; if no stack file, state N/A]<br>
+**Stack Security Pitfalls to Mitigate**: [List relevant items from `## Security Pitfalls` in `stack.md` and how this work avoids them]<br>
+**Stack Security Evidence**: [List evidence you will produce per `## Security Evidence` in `stack.md`]<br>
 **Expected Stack Artifacts**: [Artifacts this feature should produce for the selected stack]<br>
 **Language / Runtime**: [e.g., PHP 8.2, Node 20, MySQL 8 or NEEDS CLARIFICATION]  
 **Primary Dependencies**: [frameworks, packages, platform modules or NEEDS CLARIFICATION]  
@@ -45,7 +48,11 @@ delivery-sensitive context]
   justified exception.
 - **Security and Privacy**: Plan identifies whether the work touches
   authentication, authorization, sensitive data, credentials, encryption, or
-  secure transport requirements.
+  secure transport requirements; it MUST reference `.specify/memory/security-
+  standard.md` for applicable MUST items and MUST map the feature to **Security
+  Controls**, **Security Pitfalls**, and **Security Evidence** in
+  `.specify/context/stack.md` when a stack is registered (or document N/A and
+  justify if `stack.md` is absent).
 - **Data Modeling and Integrity**: Plan states whether the work changes core
   domain data, schema, migrations, seeders, imports, exports, or persistence
   rules, and whether data-model artifacts are required.
@@ -62,7 +69,10 @@ delivery-sensitive context]
 
 ## Impact Assessment
 
-**Touches Authentication / Authorization**: [Yes/No + impact summary]  
+**Touches Authentication / Authorization** (including new roles, policies,
+public endpoints, or session changes): [Yes/No + impact summary]  
+**Touches Cryptography or Secret Material** (keys, tokens, new encryption,
+password flows): [Yes/No + summary]  
 **Touches Sensitive Data / Privacy**: [Yes/No + data classes and handling summary]  
 **Touches Core Domain Data**: [Yes/No + entities / records affected]  
 **Touches Large Listings / Reports / Exports**: [Yes/No + pagination / batching implications]  
@@ -136,6 +146,17 @@ directories captured above]
 [Summarize applicable authentication, authorization, password, encryption,
 secure-channel, and privacy requirements. Use "N/A" only when clearly
 inapplicable.]
+
+Explicitly tie this section to:
+
+- `.specify/memory/security-standard.md` — list which numbered sections (1–16)
+  apply and which MUST items you satisfy.
+- `.specify/context/stack.md` — quote or summarize the relevant bullets under
+  **Security Controls**, how you mitigate **Security Pitfalls**, and what
+  **Security Evidence** you will attach (tests, config, audit events).
+- For work on non-approved stacks (for example legacy Moodle 3), reference
+  `.specify/memory/legacy/moodle3-security-template.md` and record the approved
+  exception in **Deviation / Exception Needed** above.
 
 ### Data Model and Persistence
 
